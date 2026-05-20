@@ -8,6 +8,11 @@ import path from 'path';
 import os from 'os';
 import manageGitignoreFile from '../../src/utils/manage-gitignore.js';
 
+// Skip permission based tests when running as root because
+// filesystem permission checks will not behave as expected
+// under a privileged user.
+const isRoot = typeof process.getuid === 'function' && process.getuid() === 0;
+
 describe('manage-gitignore.js Integration Tests', () => {
 	let tempDir;
 	let testGitignorePath;
@@ -382,8 +387,10 @@ tasks/ `;
 		});
 	});
 
-	describe('Error Handling', () => {
-		test('should handle permission errors gracefully', () => {
+        describe('Error Handling', () => {
+                const maybeTest = isRoot ? test.skip : test;
+
+                maybeTest('should handle permission errors gracefully', () => {
 			// Create a directory where we would create the file, then remove write permissions
 			const readOnlyDir = path.join(tempDir, 'readonly');
 			fs.mkdirSync(readOnlyDir);
@@ -419,7 +426,7 @@ tasks/ `;
 			fs.chmodSync(readOnlyDir, 0o755);
 		});
 
-		test('should handle read errors on existing files', () => {
+                maybeTest('should handle read errors on existing files', () => {
 			// Create a file then remove read permissions
 			fs.writeFileSync(testGitignorePath, 'existing content');
 			fs.chmodSync(testGitignorePath, 0o000); // No permissions
